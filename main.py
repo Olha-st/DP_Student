@@ -100,13 +100,42 @@ class StudentInfoTab(QWidget):
         # Додаємо відступ після кнопок
         main_layout.addSpacing(20)
 
-        
+
          # Таблиця студентів
         self.table = QTableWidget()
         main_layout.addWidget(self.table)
         self.setLayout(main_layout)
 
-        self.load_students()
+        # self.load_students()
+
+        # Горизонтальна панель фільтрації груп
+        main_layout.addSpacing(20)
+        filter_layout = QHBoxLayout()
+        self.all_students_btn = QPushButton("Весь список")
+        self.group_ki_21_01_btn = QPushButton("КІ-21-01")
+        self.group_ki_21_02_btn = QPushButton("КІ-21-02")
+        
+
+        # Додаємо кнопки до фільтраційного блоку
+        for btn in (self.all_students_btn, self.group_ki_21_01_btn, self.group_ki_21_02_btn):
+            btn.setFixedSize(120, 30)
+            btn.setStyleSheet("background-color: #A0E0A0; color: white; border: none; border-radius: 5px; font-size: 14px;")
+            filter_layout.addWidget(btn)
+        
+        main_layout.addLayout(filter_layout)
+
+        self.load_students()  # Завантаження даних
+
+        # Підключення кнопок до функцій
+        self.add_btn.clicked.connect(self.add_student)
+        self.edit_btn.clicked.connect(self.edit_student)
+        self.delete_btn.clicked.connect(self.delete_student)
+        self.sort_btn.clicked.connect(self.sort_students)
+
+        self.all_students_btn.clicked.connect(lambda: self.load_students())  # Завантажити всіх студентів
+        self.group_ki_21_01_btn.clicked.connect(lambda: self.load_students("КІ-21-01"))  # Фільтр групи КІ-21-01
+        self.group_ki_21_02_btn.clicked.connect(lambda: self.load_students("КІ-21-02"))  # Фільтр групи КІ-21-02
+
 
         # Підключення слотів до кнопок
         self.add_btn.clicked.connect(self.add_student)
@@ -114,23 +143,28 @@ class StudentInfoTab(QWidget):
         self.delete_btn.clicked.connect(self.delete_student)
         self.sort_btn.clicked.connect(self.sort_students)
 
-    def load_students(self):
+    def load_students(self, group_name=None):
+        """Завантаження списку студентів, з можливістю фільтрації за групою."""
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Student_info")
+
+        if group_name:
+            cursor.execute("SELECT * FROM Student_info WHERE group_name = ?", (group_name,))
+        else:
+            cursor.execute("SELECT * FROM Student_info")
+
         students = cursor.fetchall()
         conn.close()
 
         self.table.setRowCount(len(students))
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["ID", "Прізвище", "Ім'я", "По батькові", "Дата народження", "Група"])
-        
 
         for row, student in enumerate(students):
             for col, data in enumerate(student):
                 self.table.setItem(row, col, QTableWidgetItem(str(data)))
+
         self.table.resizeColumnsToContents()
-        # self.table.horizontalHeader().setMinimumSectionSize(150)
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
         )
