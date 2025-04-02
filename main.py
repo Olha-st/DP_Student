@@ -90,7 +90,7 @@ class StudentInfoTab(QWidget):
 
         # Встановлюємо однаковий розмір кнопок та зелений відтінок
         btn_size = (120, 30)
-        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px;"
+        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-size: 16px"
         for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.sort_btn):
             btn.setFixedSize(*btn_size)
             btn.setStyleSheet(style)
@@ -100,6 +100,8 @@ class StudentInfoTab(QWidget):
         # Додаємо відступ після кнопок
         main_layout.addSpacing(20)
 
+        
+         # Таблиця студентів
         self.table = QTableWidget()
         main_layout.addWidget(self.table)
         self.setLayout(main_layout)
@@ -138,6 +140,8 @@ class StudentInfoTab(QWidget):
         self.table.setColumnWidth(3, 200)
         self.table.setColumnWidth(4, 180)
         self.table.setColumnWidth(5, 100)
+
+
         
     def add_student(self):
         dialog = StudentDialog(self)
@@ -278,7 +282,7 @@ class CoursesTab(QWidget):
         self.show_all_btn = QPushButton("Показати усі")
         
         btn_size = (120, 30)
-        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px;"
+        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.filter_btn, self.show_all_btn):
             btn.setFixedSize(*btn_size)
             btn.setStyleSheet(style)
@@ -680,16 +684,16 @@ class GradesByCourseTab(QWidget):
         self.table = QTableWidget()
         self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)  # Дозволяє редагування
         layout.addWidget(self.table)
-
+        layout.addSpacing(20)
         # Кнопки "Зберегти оцінки" та "Експортувати відомість"
         btn_layout = QHBoxLayout()
-
+        btn_layout.addSpacing(20)
         self.save_grades_btn = QPushButton("Зберегти оцінки")
         self.export_button = QPushButton("Відомість")
 
         for btn in (self.save_grades_btn, self.export_button):
             btn.setFixedSize(150, 30)
-            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px;")
+            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px; font-size: 16px")
 
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(self.save_grades_btn)
@@ -698,10 +702,11 @@ class GradesByCourseTab(QWidget):
         btn_layout.addWidget(self.export_button)
 
         btn_layout.addStretch()  # Додаємо розтягування праворуч, щоб кнопки лишилися зліва
-
+       
         layout.addLayout(btn_layout)
 
         self.setLayout(layout)
+        layout.addSpacing(20)
 
         # Підключення подій
         self.save_grades_btn.clicked.connect(self.save_grades)
@@ -771,50 +776,58 @@ class GradesByCourseTab(QWidget):
 
 
     def save_grades(self):
-        """Збереження внесених оцінок у базу даних."""
+        """Збереження внесених оцінок у базу даних із перевіркою правильності введених даних."""
         course_id = self.course_dropdown.currentData()
         if course_id is None:
             QMessageBox.warning(self, "Помилка", "Виберіть предмет перед збереженням оцінок!")
             return
 
-        conn = sqlite3.connect("Student.db")
-        cursor = conn.cursor()
+        try:
+            with sqlite3.connect("Student.db") as conn:  # Контекстний менеджер закриє з'єднання
+                cursor = conn.cursor()
 
-        for row in range(self.table.rowCount()):
-            student_id_item = self.table.item(row, 0)  # ID студента
-            grade_item = self.table.item(row, 4)  # Оцінка
+                for row in range(self.table.rowCount()):
+                    student_id_item = self.table.item(row, 0)  # ID студента
+                    grade_item = self.table.item(row, 4)  # Оцінка
 
-            if not student_id_item or not grade_item:
-                print(f"⚠️ Пропущено запис у рядку {row}: ID або оцінка відсутні.")
-                continue  # Пропускаємо рядок, якщо дані відсутні
+                    if not student_id_item or not grade_item:
+                        print(f"⚠️ Пропущено запис у рядку {row}: ID або оцінка відсутні.")
+                        continue
 
-            student_id_text = student_id_item.text().strip()
-            grade_text = grade_item.text().strip()
+                    student_id_text = student_id_item.text().strip()
+                    grade_text = grade_item.text().strip()
 
-            if not student_id_text.isdigit():
-                print(f"⚠️ Некоректний ID студента у рядку {row}: {student_id_text}")
-                continue
+                    if not student_id_text.isdigit():
+                        print(f"⚠️ Некоректний ID студента у рядку {row}: {student_id_text}")
+                        continue
 
-            if not grade_text.isdigit():
-                print(f"⚠️ Некоректна оцінка у рядку {row}: {grade_text}")
-                continue
+                    if not grade_text.isdigit():
+                        QMessageBox.warning(self, "Помилка", f"Некоректна оцінка у рядку {row + 1}: {grade_text}. "
+                                                            f"Оцінка має бути числом від 1 до 12!")
+                        return
 
-            student_id = int(student_id_text)
-            grade = int(grade_text)
+                    grade = int(grade_text)
 
-            cursor.execute("""
-                INSERT INTO Grades (student_id, course_id, grade) 
-                VALUES (?, ?, ?) 
-                ON CONFLICT(student_id, course_id) DO UPDATE SET grade=excluded.grade
-            """, (student_id, course_id, grade))
+                    if not (1 <= grade <= 12):
+                        QMessageBox.warning(self, "Помилка", f"Оцінка у рядку {row + 1} ({grade}) виходить за межі 1-12!")
+                        return
 
-        conn.commit()
-        conn.close()
+                    student_id = int(student_id_text)
+
+                    cursor.execute("""
+                        INSERT INTO Grades (student_id, course_id, grade) 
+                        VALUES (?, ?, ?) 
+                        ON CONFLICT(student_id, course_id) DO UPDATE SET grade=excluded.grade
+                    """, (student_id, course_id, grade))
+
+                conn.commit()  # Явно зберігаємо зміни
+
+        except sqlite3.OperationalError as e:
+            QMessageBox.critical(self, "Помилка", f"Помилка бази даних: {e}")
 
         QMessageBox.information(self, "Успіх", "Оцінки успішно збережено!")
+        self.load_grades()  # Оновлення таблиці
 
-        # Оновлюємо таблицю після збереження
-        self.load_grades()
 
 
 
@@ -953,7 +966,7 @@ class RatingTab(QWidget):
         self.show_all_btn = QPushButton("Показати усіх")
 
         btn_size = (120, 30)
-        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px;"
+        style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.list_btn, self.show_all_btn):
             btn.setFixedSize(*btn_size)
             btn.setStyleSheet(style)
@@ -1133,38 +1146,62 @@ class GradeEntryTab(QWidget):
         main_layout = QVBoxLayout()
         
         # Верхній блок: вибір студента
+        main_layout.addSpacing(20)  # Додає відступ у 20 пікселів зверху
         top_layout = QHBoxLayout()
         top_layout.addWidget(QLabel("Студент:"))
+        top_layout.addSpacing(40)
         self.student_cb = QComboBox()
         top_layout.addWidget(self.student_cb)
         main_layout.addLayout(top_layout)
+        main_layout.addSpacing(20)  # Додає відступ у 20 пікселів зверху
+        top_layout.addStretch()
         
         # Таблиця предметів
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["ID", "Предмет", "Оцінка"])
+
+        # Встановлюємо фіксовану ширину колонок
+        self.table.setColumnWidth(0, 50)   # ID
+        self.table.setColumnWidth(1, 200)  # Предмет
+        self.table.setColumnWidth(2, 60)   # Оцінка
+
         main_layout.addWidget(self.table)
+
 
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
         )
+
         
         # Кнопка "Зберегти оцінки"
+        main_layout.addSpacing(20)
+        btn_layout = QHBoxLayout()
         self.save_btn = QPushButton("Зберегти оцінки")
-        self.save_btn.setFixedSize(120, 30)
-        self.save_btn.setStyleSheet("background-color: #4CAF50; color: white; border: none; border-radius: 5px;")
-        main_layout.addWidget(self.save_btn)
+        self.export_btn = QPushButton("Експорт в Excel")
+        self.save_btn.setFixedSize(140, 30)
+        self.export_btn.setFixedSize(140, 30)
+
+        self.save_btn.setStyleSheet("background-color: #4CAF50; color: white; border: none; border-radius: 5px;font-size:16px")
+        self.export_btn.setStyleSheet("background-color: #4CAF50; color: white; border: none; border-radius: 5px;font-size:16px")
+        btn_layout.addWidget(self.save_btn)
+        btn_layout.addSpacing(40)  # Відступ перед першою кнопкою
+        btn_layout.addWidget(self.export_btn)
+        main_layout.addLayout(btn_layout)
+        main_layout.addSpacing(20)
         
         self.setLayout(main_layout)
+        btn_layout.addStretch()
+        
+        
+        # self.setLayout(main_layout)
         
         # Завантаження даних студентів і предметів
         self.load_students()
         self.student_cb.currentIndexChanged.connect(self.load_courses_for_student)
         self.save_btn.clicked.connect(self.save_grades)
+        self.export_btn.clicked.connect(self.export_to_excel)
         
-
-        
-
         # Завантажуємо предмети для поточного студента (якщо список не порожній)
         if self.student_cb.count() > 0:
             self.load_courses_for_student()
@@ -1173,9 +1210,14 @@ class GradeEntryTab(QWidget):
         """Завантажуємо студентів у випадаючий список."""
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT student_id, last_name, first_name FROM Student_info")
+        cursor.execute("""
+            SELECT student_id, last_name, first_name 
+            FROM Student_info 
+            ORDER BY last_name ASC
+        """)
         students = cursor.fetchall()
         conn.close()
+
         self.student_cb.clear()
         for s in students:
             # Формуємо рядок типу "Прізвище Ім'я"
@@ -1219,10 +1261,7 @@ class GradeEntryTab(QWidget):
         self.table.resizeColumnsToContents()
     
     def save_grades(self):
-        """Зберігаємо введені оцінки для обраного студента.
-           Для кожного предмета, якщо поле 'Оцінка' не порожнє, спочатку видаляємо існуючий запис,
-           а потім вставляємо новий.
-        """
+        """Зберігаємо введені оцінки, перевіряючи правильність введених даних."""
         student_id = self.student_cb.currentData()
         rows = self.table.rowCount()
         conn = sqlite3.connect("Student.db")
@@ -1230,14 +1269,14 @@ class GradeEntryTab(QWidget):
         for row in range(rows):
             course_id = int(self.table.item(row, 0).text())
             grade_text = self.table.item(row, 2).text().strip()
-            # Видаляємо існуючий запис для цього студента та предмета
             cursor.execute("DELETE FROM Grades WHERE student_id = ? AND course_id = ?", (student_id, course_id))
-            # Якщо введено оцінку, вставляємо новий запис
             if grade_text != "":
                 try:
                     grade_val = int(grade_text)
+                    if not (1 <= grade_val <= 12):
+                        raise ValueError("Оцінка має бути в межах 1-12!")
                 except ValueError:
-                    QMessageBox.warning(self, "Помилка", f"Оцінка в рядку {row+1} має бути числовим значенням!")
+                    QMessageBox.warning(self, "Помилка", f"Оцінка в рядку {row+1} має бути числом від 1 до 12!")
                     conn.rollback()
                     conn.close()
                     return
@@ -1247,6 +1286,37 @@ class GradeEntryTab(QWidget):
         conn.close()
         QMessageBox.information(self, "Успіх", "Оцінки збережено!")
         self.load_courses_for_student()
+                
+        
+    def export_to_excel(self):
+        """Експортує оцінки у файл Excel."""
+        student_id = self.student_cb.currentData()
+        student_name = self.student_cb.currentText()
+        conn = sqlite3.connect("Student.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT Course.name, Grades.grade 
+            FROM Grades 
+            JOIN Course ON Grades.course_id = Course.course_id 
+            WHERE Grades.student_id = ?
+        """, (student_id,))
+        data = cursor.fetchall()
+        conn.close()
+        
+        if not data:
+            QMessageBox.warning(self, "Помилка", "Немає оцінок для експорту!")
+            return
+        
+        df = pd.DataFrame(data, columns=["Предмет", "Оцінка"])
+        filename = f"{student_name}_оцінки.xlsx"
+        df.to_excel(filename, index=False)
+        QMessageBox.information(self, "Успіх", f"Файл '{filename}' збережено!")
+
+
+        # conn.commit()
+        # conn.close()
+        # QMessageBox.information(self, "Успіх", "Оцінки збережено!")
+        # self.load_courses_for_student()
 
 
 
