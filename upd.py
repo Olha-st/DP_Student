@@ -1,16 +1,20 @@
 import sqlite3
 
-# Підключення до бази даних
+# Підключення до існуючої бази
 conn = sqlite3.connect("Student.db")
 cursor = conn.cursor()
 
-# Додавання нового поля 'group_name' до таблиці Student_info
-try:
-    cursor.execute("ALTER TABLE Student_info ADD COLUMN group_name TEXT")
-    print("Поле 'group_name' успішно додано!")
-except sqlite3.OperationalError:
-    print("Поле 'group_name' вже існує!")
+# Створення таблиці users, якщо вона ще не існує
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    password TEXT NOT NULL,
+    position TEXT CHECK(position IN ('заввідділенням', 'секретар', 'студент')) NOT NULL
+)
+""")
 
-# Збереження змін і закриття з'єднання
 conn.commit()
 conn.close()
+
+print("Таблиця 'users' успішно створена.")

@@ -2,16 +2,26 @@
 import sys
 import openpyxl  # Робота з Excel
 import math
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtGui import QColor
 import sqlite3
 import pandas as pd
 from PyQt5.QtCore import Qt, QDate
 from classes import Student
+from RegistrationDialog import RegistrationDialog
+from change_password_dialog import ChangePasswordDialog
+from StudentDialog import StudentDialog
+from LoginDialog import LoginDialog
+from CourseDialog import CourseDialog
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
                              QTabWidget, QLabel, QPushButton, QComboBox, QDialog, QFormLayout, QLineEdit,
-                             QDialogButtonBox, QMessageBox, QInputDialog, QDateEdit, QAbstractItemView)
+                             QDialogButtonBox, QMessageBox, QInputDialog, QDateEdit, QAbstractItemView, QFileDialog)
 
 
+
+
+
+
+# Клас для коректного числового сортування
 class NumericItem(QTableWidgetItem):
     def __lt__(self, other):
         try:
@@ -20,58 +30,7 @@ class NumericItem(QTableWidgetItem):
             return QTableWidgetItem.__lt__(self, other)
 
 
-# Діалог для введення/редагування даних студента
-class StudentDialog(QDialog):
-    def __init__(self, parent=None, student=None):
-        super().__init__(parent)
-        self.setWindowTitle("Дані студента")
-        self.student = student
-        self.initUI()
-
-    def initUI(self):
-        self.layout = QFormLayout(self)
-        self.id_edit = QLineEdit()
-        self.id_edit.setReadOnly(True)  #  ID не можна редагувати вручну
-        self.last_name_edit = QLineEdit()
-        self.first_name_edit = QLineEdit()
-        self.middle_name_edit = QLineEdit()
-        self.date_edit = QLineEdit()
-        self.group_name_edit = QLineEdit()
-
-        self.layout.addRow("ID:", self.id_edit)
-        self.layout.addRow("Прізвище:", self.last_name_edit)
-        self.layout.addRow("Ім'я:", self.first_name_edit)
-        self.layout.addRow("По батькові:", self.middle_name_edit)
-        self.layout.addRow("Дата народження:", self.date_edit)
-        self.layout.addRow("Група:", self.group_name_edit)
-
-        # Якщо студент переданий (редагування), попередньо заповнюємо поля
-        if self.student is not None:
-            self.id_edit.setText(str(self.student.student_id))
-            self.id_edit.setReadOnly(True)  # ID не редагується
-            self.last_name_edit.setText(self.student.last_name)
-            self.first_name_edit.setText(self.student.first_name)
-            self.middle_name_edit.setText(self.student.middle_name)
-            self.date_edit.setText(self.student.date)
-            self.group_name_edit.setText(self.student.group_name)
-
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-        self.layout.addWidget(self.buttonBox)
-
-    def get_data(self):
-        return {
-            'student_id': int(self.id_edit.text()) if self.id_edit.text().isdigit() else None,  # Перевірка на число,
-            'last_name': self.last_name_edit.text(),
-            'first_name': self.first_name_edit.text(),
-            'middle_name': self.middle_name_edit.text(),
-            'date': self.date_edit.text(),
-            'group_name': self.group_name_edit.text()
-        }
-
-
-# Вкладка "Інформація про студентів"
+# 📌Вкладка1 "Інформація про студентів"
 class StudentInfoTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -85,6 +44,10 @@ class StudentInfoTab(QWidget):
         self.edit_btn = QPushButton("Редагувати")
         self.delete_btn = QPushButton("Видалити")
         self.sort_btn = QPushButton("Сортувати")
+        self.register_btn = QPushButton("Зареєструвати студента")
+        self.register_btn.setFixedSize(180, 30)
+        self.register_btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px;font-size:1px")
+        btn_layout.addWidget(self.register_btn)
 
         main_layout.addSpacing(20)
 
@@ -135,6 +98,8 @@ class StudentInfoTab(QWidget):
         self.edit_btn.clicked.connect(self.edit_student)
         self.delete_btn.clicked.connect(self.delete_student)
         self.sort_btn.clicked.connect(self.sort_students)
+        self.register_btn.clicked.connect(self.register_student)
+
 
     def load_students(self, group_name=None, order_by=None):
         """Завантаження списку студентів, з можливістю фільтрації за групою."""
@@ -158,6 +123,7 @@ class StudentInfoTab(QWidget):
         self.table.setRowCount(len(students))
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["ID", "Прізвище", "Ім'я", "По батькові", "Дата народження", "Група"])
+        self.table.setColumnHidden(0, True)
 
         for row, student in enumerate(students):
             for col, data in enumerate(student):
@@ -247,61 +213,16 @@ class StudentInfoTab(QWidget):
             else:
                 self.table.sortItems(1, Qt.DescendingOrder)
 
+    
+    def register_student(self):
+        dialog = RegistrationDialog(self)
+        dialog.exec_()
 
-# Клас для коректного числового сортування
-class NumericItem(QTableWidgetItem):
-    def __lt__(self, other):
-        try:
-            return float(self.text()) < float(other.text())
-        except ValueError:
-            return QTableWidgetItem.__lt__(self, other)
 
-# Діалог для введення/редагування даних предмета
-class CourseDialog(QDialog):
-    def __init__(self, parent=None, course=None):
-        super().__init__(parent)
-        self.setWindowTitle("Дані предмета")
-        self.course = course
-        self.initUI()
 
-    def initUI(self):
-        self.layout = QFormLayout(self)
-        self.id_edit = QLineEdit()
-        self.name_edit = QLineEdit()
-        self.hours_edit = QLineEdit()
-        self.form_control_edit = QLineEdit()
-        self.semester_edit = QLineEdit()
 
-        self.layout.addRow("ID:", self.id_edit)
-        self.layout.addRow("Назва:", self.name_edit)
-        self.layout.addRow("Години:", self.hours_edit)
-        self.layout.addRow("Форма контролю:", self.form_control_edit)
-        self.layout.addRow("Семестр:", self.semester_edit)
 
-        if self.course is not None:
-            # course - кортеж (course_id, name, number_hours, form_control, semester)
-            self.id_edit.setText(str(self.course[0]))
-            self.id_edit.setReadOnly(True)
-            self.name_edit.setText(self.course[1])
-            self.hours_edit.setText(str(self.course[2]))
-            self.form_control_edit.setText(self.course[3])
-            self.semester_edit.setText(self.course[4])
-
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-        self.layout.addWidget(self.buttonBox)
-
-    def get_data(self):
-        return {
-            'course_id': int(self.id_edit.text()),
-            'name': self.name_edit.text(),
-            'number_hours': int(self.hours_edit.text()),
-            'form_control': self.form_control_edit.text(),
-            'semester': self.semester_edit.text()
-        }
-
-# Клас CoursesTab з кнопками для управління, фільтром та сортуванням
+#📌 Вкладка2 CoursesTab для введення, редагування предметів
 class CoursesTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -367,6 +288,7 @@ class CoursesTab(QWidget):
     def load_courses(self):
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
+
         if self.filter_semester:
             cursor.execute("SELECT * FROM Course WHERE semester = ?", (self.filter_semester,))
         else:
@@ -377,19 +299,18 @@ class CoursesTab(QWidget):
         self.table.setRowCount(len(courses))
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр"])
+        self.table.setColumnHidden(0, True)  # ховаємо ID
+
         for row, course in enumerate(courses):
             for col, data in enumerate(course):
-                if col == 2:  # Стовпець "Години" обробляємо як числовий
-                    item = NumericItem(str(data))
-                else:
-                    item = QTableWidgetItem(str(data))
+                item = NumericItem(str(data)) if col == 2 else QTableWidgetItem(str(data))
                 self.table.setItem(row, col, item)
-        # self.table.resizeColumnsToContents()
+
         self.table.setColumnWidth(0, 40)
         self.table.setColumnWidth(1, 250)
+        self.table.setColumnWidth(2, 80)
         self.table.setColumnWidth(3, 160)
         self.table.setColumnWidth(4, 100)
-        self.table.setColumnWidth(5, 100)
 
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
@@ -403,29 +324,32 @@ class CoursesTab(QWidget):
                 conn = sqlite3.connect("Student.db")
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT INTO Course (course_id, name, number_hours, form_control, semester)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (data['course_id'], data['name'], data['number_hours'],
-                      data['form_control'], data['semester']))
+                    INSERT INTO Course (name, number_hours, form_control, semester)
+                    VALUES (?, ?, ?, ?)
+                """, (data['name'], data['number_hours'], data['form_control'], data['semester']))
                 conn.commit()
                 conn.close()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося додати предмет:\n{e}")
             self.load_courses()
 
+
     def edit_course(self):
         selected = self.table.selectedItems()
         if not selected:
             QMessageBox.warning(self, "Попередження", "Оберіть запис для редагування")
             return
+
         row = selected[0].row()
         course_id = int(self.table.item(row, 0).text())
         name = self.table.item(row, 1).text()
         number_hours = int(self.table.item(row, 2).text())
         form_control = self.table.item(row, 3).text()
         semester = self.table.item(row, 4).text()
+
         current_course = (course_id, name, number_hours, form_control, semester)
         dialog = CourseDialog(self, course=current_course)
+
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_data()
             try:
@@ -435,22 +359,25 @@ class CoursesTab(QWidget):
                     UPDATE Course
                     SET name = ?, number_hours = ?, form_control = ?, semester = ?
                     WHERE course_id = ?
-                """, (data['name'], data['number_hours'], data['form_control'], data['semester'], data['course_id']))
+                """, (data['name'], data['number_hours'], data['form_control'], data['semester'], course_id))
                 conn.commit()
                 conn.close()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося оновити дані предмета:\n{e}")
             self.load_courses()
 
+
     def delete_course(self):
         selected = self.table.selectedItems()
         if not selected:
             QMessageBox.warning(self, "Попередження", "Оберіть запис для видалення")
             return
+
         row = selected[0].row()
         course_id = int(self.table.item(row, 0).text())
+
         reply = QMessageBox.question(self, "Підтвердження", "Ви впевнені, що хочете видалити запис?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             try:
                 conn = sqlite3.connect("Student.db")
@@ -461,6 +388,7 @@ class CoursesTab(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося видалити предмет:\n{e}")
             self.load_courses()
+
 
     def filter_courses(self):
         semester, ok = QInputDialog.getText(self, "Фільтр", "Введіть семестр для фільтрації (залиште порожнім для скидання):")
@@ -486,16 +414,17 @@ class CoursesTab(QWidget):
         self.table.sortItems(field_index, sort_order)
 
 
-# 📌 Вкладка "Успішність по предмету"
+# 📌 Вкладка3 "Успішність по предмету"
 class GradesByCourseTab(QWidget):
-    def __init__(self):
+    def __init__(self, student_id=None):
         super().__init__()
+        self.student_id = student_id
         self.initUI()
 
     def initUI(self):
         layout = QVBoxLayout()
 
-# Додаємо відступ перед групою віджетів
+        # Додаємо відступ перед групою віджетів
         layout.addSpacing(20)
 
         # Вибір предмета
@@ -507,134 +436,224 @@ class GradesByCourseTab(QWidget):
 
         course_layout.addWidget(course_label, 0, Qt.AlignLeft)
         course_layout.addSpacing(20)
+        self.course_dropdown.setMinimumWidth(250)
         course_layout.addWidget(self.course_dropdown, 0, Qt.AlignLeft)
         course_layout.addStretch()
-
         layout.addLayout(course_layout)
 
         # Відступ між групами віджетів
         layout.addSpacing(20)
 
-        # Група та дата контролю
-        group_date_layout = QHBoxLayout()
+        # 🔐 Тільки для викладачів/секретарів: група + дата
+        if not self.student_id:
+            group_date_layout = QHBoxLayout()
 
-        # Вибір групи
-        group_label = QLabel("Оберіть групу:")
-        self.group_dropdown = QComboBox()
-        self.group_dropdown.setFixedWidth(150)
-        self.group_dropdown.addItems(["КІ-21-01", "КІ-21-02"])
-        self.group_dropdown.currentIndexChanged.connect(self.load_grades)
+            # Вибір групи
+            group_label = QLabel("Оберіть групу:")
+            self.group_dropdown = QComboBox()
+            self.group_dropdown.setFixedWidth(150)
+            self.group_dropdown.addItems(["КІ-21-01", "КІ-21-02"])
+            self.group_dropdown.currentIndexChanged.connect(self.load_grades)
 
-        # Поле вибору дати
-        date_label = QLabel("Дата проведення контролю:")
-        self.date_picker = QDateEdit()
-        self.date_picker.setCalendarPopup(True)
-        self.date_picker.setDate(QDate.currentDate())
+            # Поле вибору дати
+            date_label = QLabel("Дата проведення контролю:")
+            self.date_picker = QDateEdit()
+            self.date_picker.setCalendarPopup(True)
+            self.date_picker.setDate(QDate.currentDate())
 
-        # Додаємо віджети з потрібними відступами
-        group_date_layout.addWidget(group_label, 0, Qt.AlignLeft)
-        group_date_layout.addSpacing(20)
-        group_date_layout.addWidget(self.group_dropdown, 0, Qt.AlignLeft)
-        group_date_layout.addSpacing(40)
-        group_date_layout.addWidget(date_label, 0, Qt.AlignLeft)
-        group_date_layout.addSpacing(20)
-        group_date_layout.addWidget(self.date_picker, 0, Qt.AlignLeft)
-        group_date_layout.addStretch()
+            # Додаємо віджети з потрібними відступами
+            group_date_layout.addWidget(group_label, 0, Qt.AlignLeft)
+            group_date_layout.addSpacing(20)
+            group_date_layout.addWidget(self.group_dropdown, 0, Qt.AlignLeft)
+            group_date_layout.addSpacing(40)
+            group_date_layout.addWidget(date_label, 0, Qt.AlignLeft)
+            group_date_layout.addSpacing(20)
+            group_date_layout.addWidget(self.date_picker, 0, Qt.AlignLeft)
+            group_date_layout.addStretch()
 
-        layout.addLayout(group_date_layout)
+            layout.addLayout(group_date_layout)
 
         # Додаємо відступ після групи віджетів
         layout.addSpacing(20)
 
 
-        # Таблиця з оцінками
-        self.table = QTableWidget()
-        self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)  # Дозволяє редагування
-        layout.addWidget(self.table)
-        layout.addSpacing(20)
-        # Кнопки "Зберегти оцінки" та "Експортувати відомість"
-        btn_layout = QHBoxLayout()
-        btn_layout.addSpacing(20)
-        self.save_grades_btn = QPushButton("Зберегти оцінки")
-        self.export_button = QPushButton("Відомість")
+        # # Таблиця з оцінками
+        # self.table = QTableWidget()
+        # self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)  # Дозволяє редагування
+        # layout.addWidget(self.table)
+        # layout.addSpacing(20)
+        # # Кнопки "Зберегти оцінки" та "Експортувати відомість"
+        # btn_layout = QHBoxLayout()
+        # btn_layout.addSpacing(20)
+        
+        # self.save_grades_btn = QPushButton("Зберегти оцінки")
+        # self.export_button = QPushButton("Відомість")
+        
 
-        for btn in (self.save_grades_btn, self.export_button):
-            btn.setFixedSize(150, 30)
-            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px; font-size: 16px")
+        # for btn in (self.save_grades_btn, self.export_button):
+        #     btn.setFixedSize(150, 30)
+        #     btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px; font-size: 16px")
 
-        btn_layout = QHBoxLayout()
-        btn_layout.addWidget(self.save_grades_btn)
-        # Додаємо фіксований проміжок 40 пікселів
-        btn_layout.addSpacing(40)
-        btn_layout.addWidget(self.export_button)
+        # btn_layout = QHBoxLayout()
+        # btn_layout.addWidget(self.save_grades_btn)
+        # # Додаємо фіксований проміжок 40 пікселів
+        # btn_layout.addSpacing(40)
+        
 
-        btn_layout.addStretch()  # Додаємо розтягування праворуч, щоб кнопки лишилися зліва
+        # btn_layout.addStretch()  # Додаємо розтягування праворуч, щоб кнопки лишилися зліва
        
+        # layout.addLayout(btn_layout)
+
+        # self.setLayout(layout)
+        # layout.addSpacing(20)
+
+        # # Підключення подій
+        # self.save_grades_btn.clicked.connect(self.save_grades)
+        # self.export_button.clicked.connect(self.export_to_excel)
+
+        # Додаємо таблицю
+        self.table = QTableWidget()
+        self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)
+        layout.addWidget(self.table)
+
+        # Додаємо кнопки лише якщо не студент
+        btn_layout = QHBoxLayout()
+
+        if not self.student_id:
+            self.save_grades_btn = QPushButton("Зберегти оцінки")
+            self.export_button = QPushButton("Відомість")
+
+            for btn in (self.save_grades_btn, self.export_button):
+                btn.setFixedSize(150, 30)
+                btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px; font-size: 16px")
+
+            btn_layout.addWidget(self.save_grades_btn)
+            btn_layout.addSpacing(40)
+            btn_layout.addWidget(self.export_button)
+
+            # Підключення сигналів
+            self.save_grades_btn.clicked.connect(self.save_grades)
+            self.export_button.clicked.connect(self.export_to_excel)
+
+        btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
+        # Встановлюємо layout вкінці
         self.setLayout(layout)
-        layout.addSpacing(20)
-
-        # Підключення подій
-        self.save_grades_btn.clicked.connect(self.save_grades)
-        self.export_button.clicked.connect(self.export_to_excel)
 
         self.load_courses()
 
 
-    def load_courses(self):
-        """Завантаження предметів (відсортованих за зростанням)"""
-        conn = sqlite3.connect("Student.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT course_id, name FROM Course ORDER BY name ASC")
-        courses = cursor.fetchall()
-        conn.close()
-
-        self.course_dropdown.clear()
-        for course in courses:
-            self.course_dropdown.addItem(course[1], course[0])
-
     def load_grades(self):
         """Завантаження оцінок по вибраному предмету"""
         course_id = self.course_dropdown.currentData()
-        group_name = self.group_dropdown.currentText()
 
-        if course_id is None or not group_name:
-            return
+        # Отримати group_name тільки якщо це не студент
+        group_name = self.group_dropdown.currentText() if hasattr(self, "group_dropdown") else None
+
+        if course_id is None and not self.student_id:
+            return  # Для викладачів потрібен вибраний предмет
 
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT Student_info.student_id, Student_info.last_name, Student_info.first_name, 
-                Student_info.middle_name, COALESCE(Grades.grade, '') 
-            FROM Student_info
-            LEFT JOIN Grades 
-            ON Student_info.student_id = Grades.student_id AND Grades.course_id = ?
-            WHERE Student_info.group_name = ?
-            ORDER BY Student_info.last_name ASC
-        """, (course_id, group_name))
-        grades = cursor.fetchall()
+
+        grades = []
+        columns = []
+
+        if self.student_id:
+            if course_id is None:
+                # 🔹 Всі оцінки по всіх предметах студента з номером семестру
+                cursor.execute("""
+                    SELECT C.semester, C.name, G.grade
+                    FROM Grades G
+                    JOIN Course C ON G.course_id = C.course_id
+                    WHERE G.student_id = ?
+                    ORDER BY C.semester ASC
+                """, (self.student_id,))
+                raw_data = cursor.fetchall()
+
+                # Групування оцінок по семестрах
+                from collections import defaultdict
+                semester_data = defaultdict(list)
+                for semester, name, grade in raw_data:
+                    semester_data[semester].append((name, grade))
+
+                # Формування списку оцінок із середніми
+                for semester in sorted(semester_data.keys()):
+                    subjects = semester_data[semester]
+                    for name, grade in subjects:
+                        grades.append((semester, name, grade))
+
+                    # Додавання середнього балу
+                    grades_in_semester = [g for _, g in subjects if isinstance(g, (int, float))]
+                    if grades_in_semester:
+                        avg = round(sum(grades_in_semester) / len(grades_in_semester), 2)
+                        grades.append((semester, "Середній бал:", avg))
+                    else:
+                        grades.append((semester, "Середній бал:", "-"))
+
+                columns = ["Семестр", "Предмет", "Оцінка"]
+            else:
+                # 🔹 Оцінки лише по вибраному предмету
+                cursor.execute("""
+                    SELECT S.last_name, S.first_name, S.middle_name, G.grade
+                    FROM Grades G
+                    JOIN Student_info S ON G.student_id = S.student_id
+                    WHERE G.course_id = ? AND G.student_id = ?
+                    ORDER BY S.last_name ASC
+                """, (course_id, self.student_id))
+                grades = cursor.fetchall()
+                columns = ["Прізвище", "Ім'я", "По батькові", "Оцінка"]
+        else:
+            # 🔹 Для викладача/секретаря — оцінки по конкретному предмету і групі
+            cursor.execute("""
+                SELECT S.student_id, S.last_name, S.first_name, S.middle_name, COALESCE(G.grade, '') 
+                FROM Student_info S
+                LEFT JOIN Grades G ON S.student_id = G.student_id AND G.course_id = ?
+                WHERE S.group_name = ?
+                ORDER BY S.last_name ASC
+            """, (course_id, group_name))
+            grades = cursor.fetchall()
+            columns = ["ID", "Прізвище", "Ім'я", "По батькові", "Оцінка"]
+
         conn.close()
 
+        # Очистка таблиці та заповнення
+        self.table.clear()
         self.table.setRowCount(len(grades))
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Прізвище", "Ім'я", "По батькові", "Оцінка"])
-        self.table.setColumnWidth(0, 200)  # Встановлюємо ширину 40px для стовпця "Оцінка"
-        self.table.setColumnWidth(1, 200)  # Встановлюємо ширину 40px для стовпця "Оцінка"
-        self.table.setColumnWidth(2, 200)  # Встановлюємо ширину 40px для стовпця "Оцінка"
-        self.table.setColumnWidth(3, 200)  # Встановлюємо ширину 40px для стовпця "Оцінка"
-        self.table.setColumnWidth(4, 80)  # Встановлюємо ширину 40px для стовпця "Оцінка"
+        self.table.setColumnCount(len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
 
         for row, grade in enumerate(grades):
-            student_id = grade[0]  # ID студента
             for col, data in enumerate(grade):
                 item = QTableWidgetItem(str(data))
-                if col == 4:  # Поле оцінки має бути редагованим
+
+                # 🔍 Виділення для "Середній бал:"
+                if len(grade) >= 2 and str(grade[1]) == "Середній бал:":
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    item.setBackground(QColor("#D0F0C0"))
+
+                # 🔒 Дозвіл редагування лише для викладачів
+                if columns[col] == "Оцінка" and not self.student_id:
                     item.setFlags(item.flags() | Qt.ItemIsEditable)
+                else:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+
                 self.table.setItem(row, col, item)
 
-        self.table.setColumnHidden(0, True)  # Приховуємо ID студента
-        # self.table.resizeColumnsToContents() # Автоматично підганяє інші колонки, крім оцінки
+        # Налаштування режиму редагування
+        if not self.student_id and "ID" in columns:
+            self.table.setColumnHidden(0, True)
+            self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)
+        else:
+            self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        # Налаштування ширини колонок
+        for i, width in enumerate([120, 300, 300,300][:len(columns)]):
+            self.table.setColumnWidth(i, width)
 
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
@@ -642,58 +661,67 @@ class GradesByCourseTab(QWidget):
 
 
 
+
+
     def save_grades(self):
-        """Збереження внесених оцінок у базу даних із перевіркою правильності введених даних."""
+        """Збереження внесених оцінок у базу даних (для викладача або секретаря)."""
         course_id = self.course_dropdown.currentData()
         if course_id is None:
             QMessageBox.warning(self, "Помилка", "Виберіть предмет перед збереженням оцінок!")
             return
 
+        # Студенти не мають права редагувати, тому просто ігноруємо дію
+        if hasattr(self, 'student_id') and self.student_id:
+            QMessageBox.information(self, "Увага", "Студенти не мають права змінювати оцінки.")
+            return
+
         try:
-            with sqlite3.connect("Student.db") as conn:  # Контекстний менеджер закриє з'єднання
+            with sqlite3.connect("Student.db") as conn:
                 cursor = conn.cursor()
 
                 for row in range(self.table.rowCount()):
-                    student_id_item = self.table.item(row, 0)  # ID студента
-                    grade_item = self.table.item(row, 4)  # Оцінка
+                    student_id_item = self.table.item(row, 0)  # Прихований ID
+                    grade_item = self.table.item(row, self.table.columnCount() - 1)  # Оцінка = останній стовпець
 
                     if not student_id_item or not grade_item:
-                        print(f"⚠️ Пропущено запис у рядку {row}: ID або оцінка відсутні.")
+                        print(f"⚠️ Пропущено рядок {row}: немає ID або оцінки.")
                         continue
 
                     student_id_text = student_id_item.text().strip()
                     grade_text = grade_item.text().strip()
 
                     if not student_id_text.isdigit():
-                        print(f"⚠️ Некоректний ID студента у рядку {row}: {student_id_text}")
+                        print(f"⚠️ Некоректний ID у рядку {row}: {student_id_text}")
                         continue
 
                     if not grade_text.isdigit():
                         QMessageBox.warning(self, "Помилка", f"Некоректна оцінка у рядку {row + 1}: {grade_text}. "
-                                                            f"Оцінка має бути числом від 1 до 12!")
+                                                            f"Введіть число від 1 до 12.")
                         return
 
                     grade = int(grade_text)
-
                     if not (1 <= grade <= 12):
                         QMessageBox.warning(self, "Помилка", f"Оцінка у рядку {row + 1} ({grade}) виходить за межі 1-12!")
                         return
 
                     student_id = int(student_id_text)
 
+                    # Запис або оновлення оцінки
                     cursor.execute("""
                         INSERT INTO Grades (student_id, course_id, grade) 
-                        VALUES (?, ?, ?) 
-                        ON CONFLICT(student_id, course_id) DO UPDATE SET grade=excluded.grade
+                        VALUES (?, ?, ?)
+                        ON CONFLICT(student_id, course_id) DO UPDATE SET grade = excluded.grade
                     """, (student_id, course_id, grade))
 
-                conn.commit()  # Явно зберігаємо зміни
+                conn.commit()
 
         except sqlite3.OperationalError as e:
-            QMessageBox.critical(self, "Помилка", f"Помилка бази даних: {e}")
+            QMessageBox.critical(self, "Помилка", f"Помилка бази даних:\n{e}")
+            return
 
         QMessageBox.information(self, "Успіх", "Оцінки успішно збережено!")
-        self.load_grades()  # Оновлення таблиці
+        self.load_grades()
+
 
 
     def export_to_excel(self):
@@ -770,13 +798,29 @@ class GradesByCourseTab(QWidget):
             QMessageBox.information(self, "Успіх", f"Відомість успішно експортована!")
 
 
+    def load_courses(self):
+        """Завантаження предметів у випадаючий список (з опцією 'усі предмети')"""
+        conn = sqlite3.connect("Student.db")
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT course_id, name FROM Course ORDER BY name ASC")
+        courses = cursor.fetchall()
+        conn.close()
+
+        self.course_dropdown.clear()
+        self.course_dropdown.addItem("Усі предмети", None)  # <--- перший пункт
+
+        for course_id, name in courses:
+            self.course_dropdown.addItem(name, course_id)
 
 
 
-# 📌 Вкладка "Рейтинг"
+
+# 📌 Вкладка4 "Рейтинг"
 class RatingTab(QWidget):
-    def __init__(self):
+    def __init__(self, readonly=False):
         super().__init__()
+        self.readonly = readonly
         self.initUI()
 
     def initUI(self):
@@ -997,10 +1041,11 @@ class RatingTab(QWidget):
 
 
 
-# 📌 Вкладка "Внесення оцінок"
+# 📌 Вкладка5 "Внесення оцінок"
 class GradeEntryTab(QWidget):
-    def __init__(self):
+    def __init__(self, student_id=None):
         super().__init__()
+        self.student_id = student_id
         self.initUI()
         
     def initUI(self):
@@ -1019,12 +1064,14 @@ class GradeEntryTab(QWidget):
         
         # Таблиця предметів
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["ID", "Предмет", "Оцінка"])
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["ID", "Предмет", "Семестр", "Оцінка"])
+        self.table.setColumnHidden(0, True)
 
         # Встановлюємо фіксовану ширину колонок
         self.table.setColumnWidth(0, 50)   # ID
         self.table.setColumnWidth(1, 200)  # Предмет
+        self.table.setColumnWidth(2, 100)  # Семестр
         self.table.setColumnWidth(2, 60)   # Оцінка
 
         main_layout.addWidget(self.table)
@@ -1083,39 +1130,56 @@ class GradeEntryTab(QWidget):
             self.student_cb.addItem(f"{s[1]} {s[2]}", s[0])
 
         
+        
     def load_courses_for_student(self):
-        """Завантажуємо усі предмети в таблицю з уже внесеними оцінками (якщо є) для обраного студента."""
+        """Завантажуємо усі предмети в таблицю, відсортовані за семестром, з уже внесеними оцінками для обраного студента."""
         student_id = self.student_cb.currentData()
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-        # Виконуємо запит, що повертає інформацію про кожен предмет і, якщо існує, відповідну оцінку для даного студента.
+
+        # Запит повертає ID предмета, назву, оцінку, семестр і форму контролю, відсортовані за семестром
         cursor.execute("""
             SELECT Course.course_id, Course.name, 
-                   (SELECT grade FROM Grades WHERE student_id = ? AND course_id = Course.course_id LIMIT 1)
+                (SELECT grade FROM Grades WHERE student_id = ? AND course_id = Course.course_id LIMIT 1),
+                Course.semester, Course.form_control
             FROM Course
-            ORDER BY Course.course_id
+            ORDER BY Course.semester, Course.course_id
         """, (student_id,))
+
         courses = cursor.fetchall()
         conn.close()
-        
+
         self.table.setRowCount(len(courses))
+
         for row, course in enumerate(courses):
-            # Стовпець 0: ID предмета (не редагується)
-            item_id = QTableWidgetItem(str(course[0]))
+            course_id, course_name, grade, semester, form_control = course
+
+            # ID предмета (не редагується)
+            item_id = QTableWidgetItem(str(course_id))
             item_id.setFlags(item_id.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 0, item_id)
-            
-            # Стовпець 1: Назва предмета (не редагується)
-            item_name = QTableWidgetItem(str(course[1]))
+
+            # Назва предмета (не редагується, з підказкою)
+            item_name = QTableWidgetItem(course_name)
             item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
+            item_name.setToolTip(f"Семестр: {semester}\nФорма контролю: {form_control}")
             self.table.setItem(row, 1, item_name)
-            
-            # Стовпець 2: Оцінка – користувач може вводити або редагувати значення
-            grade_val = "" if course[2] is None else str(course[2])
+
+            # Семестр (не редагується)
+            item_semester = QTableWidgetItem(str(semester))
+            item_semester.setFlags(item_semester.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 2, item_semester)
+
+            # Оцінка (користувач може вводити або редагувати значення)
+            grade_val = "" if grade is None else str(grade)
             item_grade = QTableWidgetItem(grade_val)
-            self.table.setItem(row, 2, item_grade)
+            self.table.setItem(row, 3, item_grade)
+
         self.table.resizeColumnsToContents()
-    
+
+
+
+
     def save_grades(self):
         """Зберігаємо введені оцінки, перевіряючи правильність введених даних."""
         student_id = self.student_cb.currentData()
@@ -1171,23 +1235,40 @@ class GradeEntryTab(QWidget):
 
 
 # 📌 Головне вікно програми
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTabWidget
+
 class MainApp(QWidget):
-    def __init__(self):
+    def __init__(self, user_data):
         super().__init__()
+        self.user_data = user_data
+        self.position = user_data["position"]
         self.initUI()
 
     def initUI(self):
+        self.setWindowTitle("Система обліку успішності студентів")
+        self.resize(1200, 800)
+
         layout = QVBoxLayout()
         self.tabs = QTabWidget()
-        self.tabs.addTab(StudentInfoTab(), "Інформація про студентів")
-        self.tabs.addTab(CoursesTab(), "Предмети")
-        self.tabs.addTab(GradesByCourseTab(), "Успішність по предмету")
-        self.tabs.addTab(RatingTab(), "Рейтинг")
-        self.tabs.addTab(GradeEntryTab(), "Внесення оцінок")
+
+        # Додавання вкладок залежно від ролі
+        if self.position in ("секретар", "заввідділенням"):
+            self.tabs.addTab(StudentInfoTab(), "Інформація про студентів")
+            self.tabs.addTab(CoursesTab(), "Предмети")
+            self.tabs.addTab(GradesByCourseTab(), "Успішність по предмету")
+            self.tabs.addTab(RatingTab(), "Рейтинг")
+            self.tabs.addTab(GradeEntryTab(), "Внесення оцінок")
+        elif self.position == "студент":
+            self.tabs.addTab(GradesByCourseTab(student_id=self.user_data["id"]), "Мої оцінки")
+            self.change_pwd_btn = QPushButton("Змінити пароль")
+            self.change_pwd_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 6px; border-radius: 5px;")
+            self.change_pwd_btn.clicked.connect(self.change_password)
+            self.tabs.addTab(RatingTab(readonly=True), "Рейтинг")
+
+            layout.addWidget(self.change_pwd_btn, alignment=Qt.AlignLeft)
+
         layout.addWidget(self.tabs)
         self.setLayout(layout)
-        self.setWindowTitle("Система обліку студентів")
-        self.resize(1200, 800)
 
         # Оформлення вкладок
         self.tabs.setStyleSheet("""
@@ -1196,10 +1277,10 @@ class MainApp(QWidget):
                 font-weight: bold;
                 padding: 8px;
                 min-width: 190px;
-                background: #CCCCCC; /* колір для неактивних вкладок */
+                background: #CCCCCC;
             }
             QTabBar::tab:selected {
-                background: #4CAF50; /* колір для активної вкладки */
+                background: #4CAF50;
                 color: white;
             }
             QTabBar::tab:!selected {
@@ -1208,48 +1289,25 @@ class MainApp(QWidget):
             }
         """)
 
+    def change_password(self):
+        dialog = ChangePasswordDialog(self.user_data["id"], self.user_data["name"], self)
+        dialog.exec_()
 
-# 📌 Ініціалізація бази даних
+
+
+
 if __name__ == "__main__":
-    conn = sqlite3.connect("Student.db")
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Student_info (
-        student_id INTEGER PRIMARY KEY,
-        last_name TEXT,
-        first_name TEXT,
-        middle_name TEXT,
-        date TEXT
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Course (
-        course_id INTEGER PRIMARY KEY,
-        name TEXT,
-        number_hours INTEGER,
-        form_control TEXT,
-        semester TEXT
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Grades (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        course_id INTEGER,
-        grade INTEGER,
-        FOREIGN KEY (student_id) REFERENCES Student_info(student_id),
-        FOREIGN KEY (course_id) REFERENCES Course(course_id)
-    )
-    """)
+    import sys
+    from PyQt5.QtWidgets import QApplication
 
-    conn.commit()
-    conn.close()
-
-    # Запуск додатку
     app = QApplication(sys.argv)
-    window = MainApp()
-    window.show()
-    sys.exiаt(app.exec_())
+
+    login_dialog = LoginDialog()
+    if login_dialog.exec_() == QDialog.Accepted:
+        user_data = login_dialog.user_data
+        main_window = MainApp(user_data)
+        main_window.show()
+        sys.exit(app.exec_())
+
+    
+    
