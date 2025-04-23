@@ -1,20 +1,27 @@
 import sqlite3
 
 class Student:
-    def __init__(self, student_id, last_name, first_name, middle_name, date, group_name):
+    def __init__(self, student_id, last_name, first_name, middle_name, date, group_name, contact_info="", note=""):
         self.student_id = student_id
         self.last_name = last_name
         self.first_name = first_name
         self.middle_name = middle_name
-        self. date = date
+        self.date = date
         self.group_name = group_name
+        self.contact_info = contact_info or ""
+        self.note = note or ""
+
     
     def add_to_db(self):
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO Student_info (last_name, first_name, middle_name, date, group_name) VALUES (?, ?, ?, ?, ?)",
-            (self.last_name, self.first_name, self.middle_name, self.date, self.group_name)
+            """
+            INSERT INTO Student_info (last_name, first_name, middle_name, date, group_name, contact_info, note) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (self.last_name, self.first_name, self.middle_name, self.date,
+            self.group_name, self.contact_info, self.note)
         )
         conn.commit()
         conn.close()
@@ -22,11 +29,15 @@ class Student:
     def update_in_db(self):
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE Student_info
-            SET last_name = ?, first_name = ?, middle_name = ?, date = ?, group_name = ?
+        cursor.execute(
+            """
+            UPDATE Student_info 
+            SET last_name = ?, first_name = ?, middle_name = ?, date = ?, group_name = ?, contact_info = ?, note = ?
             WHERE student_id = ?
-        """, (self.last_name, self.first_name, self.middle_name, self.date, self.group_name, self.student_id))
+            """,
+            (self.last_name, self.first_name, self.middle_name, self.date,
+            self.group_name, self.contact_info, self.note, self.student_id)
+        )
         conn.commit()
         conn.close()
 
@@ -36,6 +47,7 @@ class Student:
         cursor.execute("DELETE FROM Student_info WHERE student_id = ?", (self.student_id,))
         conn.commit()
         conn.close()
+
 
     
 

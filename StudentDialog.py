@@ -1,16 +1,15 @@
 # Діалог для введення/редагування даних студента
-from PyQt5.QtWidgets import QHBoxLayout, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QDateEdit
-class StudentDialog(QDialog):
-    from PyQt5.QtWidgets import (
-    QDialog, QFormLayout, QLineEdit, QDateEdit, QDialogButtonBox
+from PyQt5.QtWidgets import (
+    QDialog, QFormLayout, QLineEdit, QDateEdit, QDialogButtonBox, QHBoxLayout
 )
 from PyQt5.QtCore import QDate
+
 
 class StudentDialog(QDialog):
     def __init__(self, parent=None, student=None):
         super().__init__(parent)
         self.setWindowTitle("Дані студента")
-        self.setFixedWidth(400)  # опціонально
+        self.setFixedWidth(400)
         self.student = student
         self.initUI()
 
@@ -33,9 +32,6 @@ class StudentDialog(QDialog):
             QDateEdit::drop-down {
                 border: none;
             }
-            QDateEdit::down-arrow {
-                image: url(:/qt-project.org/styles/commonstyle/images/arrowdown-16.png);
-            }
             QDialogButtonBox QPushButton {
                 background-color: #4CAF50;
                 color: white;
@@ -45,12 +41,6 @@ class StudentDialog(QDialog):
             }
             QDialogButtonBox QPushButton:hover {
                 background-color: #45a049;
-            }
-            QDialogButtonBox QPushButton:cancel {
-                background-color: #d9534f;
-            }
-            QDialogButtonBox QPushButton:cancel:hover {
-                background-color: #c9302c;
             }
         """)
 
@@ -69,48 +59,46 @@ class StudentDialog(QDialog):
         self.date_edit.setDate(QDate.currentDate())
 
         self.group_name_edit = QLineEdit()
+        self.contact_edit = QLineEdit()
+        self.contact_edit.setInputMask("+38 (000) 000-00-00;_")
+        self.note_edit = QLineEdit()
 
+        # Додавання елементів до форми
         self.layout.addRow("ID:", self.id_edit)
         self.layout.addRow("Прізвище:", self.last_name_edit)
         self.layout.addRow("Ім'я:", self.first_name_edit)
         self.layout.addRow("По батькові:", self.middle_name_edit)
         self.layout.addRow("Дата народження:", self.date_edit)
         self.layout.addRow("Група:", self.group_name_edit)
+        self.layout.addRow("Контакти:", self.contact_edit)
+        self.layout.addRow("Примітка:", self.note_edit)
 
+        # Якщо студент редагується — заповнюємо поля
         if self.student is not None:
             self.id_edit.setText(str(self.student.student_id))
             self.last_name_edit.setText(self.student.last_name)
             self.first_name_edit.setText(self.student.first_name)
             self.middle_name_edit.setText(self.student.middle_name)
             self.group_name_edit.setText(self.student.group_name)
+            self.contact_edit.setText(self.student.contact_info)
+            self.note_edit.setText(self.student.note)
             try:
                 day, month, year = map(int, self.student.date.split('.'))
                 self.date_edit.setDate(QDate(year, month, day))
-            except:
-                pass
+            except Exception as e:
+                print("Помилка зчитування дати:", e)
 
+        # Кнопки
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-                # Отримуємо кнопки
-        ok_button = self.buttonBox.button(QDialogButtonBox.Ok)
-        cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
-
-        # Встановлюємо однаковий розмір
-        button_width = 100
-        button_height = 32
-        ok_button.setFixedSize(button_width, button_height)
-        cancel_button.setFixedSize(button_width, button_height)
-
-        # Центруємо кнопки
+        # Центрування кнопок
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         button_layout.addWidget(self.buttonBox)
         button_layout.addStretch()
         self.layout.addRow(button_layout)
-        self.layout.addWidget(self.buttonBox)
-
 
     def get_data(self):
         return {
@@ -118,18 +106,9 @@ class StudentDialog(QDialog):
             'last_name': self.last_name_edit.text(),
             'first_name': self.first_name_edit.text(),
             'middle_name': self.middle_name_edit.text(),
-            'date': self.date_edit.date().toString("dd.MM.yyyy"),  # Отримуємо дату як рядок
-            'group_name': self.group_name_edit.text()
-        }
-
-
-    def get_data(self):
-        return {
-            'student_id': int(self.id_edit.text()) if self.id_edit.text().isdigit() else None,  # Перевірка на число,
-            'last_name': self.last_name_edit.text(),
-            'first_name': self.first_name_edit.text(),
-            'middle_name': self.middle_name_edit.text(),
-            'date': self.date_edit.text(),
-            'group_name': self.group_name_edit.text()
+            'date': self.date_edit.date().toString("dd.MM.yyyy"),
+            'group_name': self.group_name_edit.text(),
+            'contact_info': self.contact_edit.text(),
+            'note': self.note_edit.text()
         }
 

@@ -13,8 +13,8 @@ from StudentDialog import StudentDialog
 from LoginDialog import LoginDialog
 from CourseDialog import CourseDialog
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-                             QTabWidget, QLabel, QPushButton, QComboBox, QDialog, QFormLayout, QLineEdit,
-                             QDialogButtonBox, QMessageBox, QInputDialog, QDateEdit, QAbstractItemView, QFileDialog)
+                             QTabWidget, QLabel, QPushButton, QComboBox, QDialog, QLineEdit,
+                             QMessageBox, QInputDialog, QDateEdit, QAbstractItemView, QFileDialog)
 
 
 
@@ -40,22 +40,18 @@ class StudentInfoTab(QWidget):
         main_layout = QVBoxLayout()
         # Горизонтальне розташування кнопок
         btn_layout = QHBoxLayout()
-        self.add_btn = QPushButton("Додати")
-        self.edit_btn = QPushButton("Редагувати")
-        self.delete_btn = QPushButton("Видалити")
-        self.sort_btn = QPushButton("Сортувати")
-        self.register_btn = QPushButton("Зареєструвати студента")
-        self.register_btn.setFixedSize(180, 30)
-        self.register_btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px;font-size:1px")
-        btn_layout.addWidget(self.register_btn)
+        self.add_btn = QPushButton("➕Додати")
+        self.edit_btn = QPushButton("🖊️Редагувати")
+        self.delete_btn = QPushButton("❌Видалити")
+        self.sort_btn = QPushButton("📊Сортувати")
+        self.register_btn = QPushButton("📝Зареєструвати студента")
 
         main_layout.addSpacing(20)
 
         # Встановлюємо однаковий розмір кнопок та зелений відтінок
-        btn_size = (120, 30)
         style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-size: 16px"
-        for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.sort_btn):
-            btn.setFixedSize(*btn_size)
+        for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.sort_btn, self.register_btn):
+            btn.setFixedSize(200, 40)
             btn.setStyleSheet(style)
             btn_layout.addWidget(btn)
 
@@ -121,8 +117,8 @@ class StudentInfoTab(QWidget):
         conn.close()
 
         self.table.setRowCount(len(students))
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Прізвище", "Ім'я", "По батькові", "Дата народження", "Група"])
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(["ID", "Прізвище", "Ім'я", "По батькові", "Дата народження", "Група", "Контакти", "Примітка"])
         self.table.setColumnHidden(0, True)
 
         for row, student in enumerate(students):
@@ -139,6 +135,8 @@ class StudentInfoTab(QWidget):
         self.table.setColumnWidth(3, 200)
         self.table.setColumnWidth(4, 180)
         self.table.setColumnWidth(5, 100)
+        self.table.setColumnWidth(6, 100)
+        self.table.setColumnWidth(7, 150)
         
     def add_student(self):
         dialog = StudentDialog(self)
@@ -146,7 +144,7 @@ class StudentInfoTab(QWidget):
             data = dialog.get_data()
             try:
                 student = Student(data['student_id'], data['last_name'], data['first_name'],
-                                  data['middle_name'], data['date'], data['group_name'])
+                                  data['middle_name'], data['date'], data['group_name'], data['contact_info'], data['note'])
                 student.add_to_db()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося додати студента:\n{e}")
@@ -165,8 +163,10 @@ class StudentInfoTab(QWidget):
         middle_name = self.table.item(row, 3).text()
         date = self.table.item(row, 4).text()
         group_name = self.table.item(row, 5).text()
+        contact_info = self.table.item(row, 6).text()
+        note = self.table.item(row, 7).text()
 
-        current_student = Student(student_id, last_name, first_name, middle_name, date, group_name)
+        current_student = Student(student_id, last_name, first_name, middle_name, date, group_name, contact_info, note)
         print("Відкриваємо діалогове вікно редагування")  # Перевірка
         dialog = StudentDialog(self, student=current_student)
 
@@ -174,7 +174,7 @@ class StudentInfoTab(QWidget):
             data = dialog.get_data()
             try:
                 updated_student = Student(data['student_id'], data['last_name'], data['first_name'],
-                                        data['middle_name'], data['date'], data['group_name'])
+                                        data['middle_name'], data['date'], data['group_name'], data['contact_info'], data['note'])
                 updated_student.update_in_db()
 
                 # Закриваємо діалог явно
@@ -198,7 +198,7 @@ class StudentInfoTab(QWidget):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             try:
-                student = Student(student_id, "", "", "", "", "")
+                student = Student(student_id, "", "", "", "", "", "", "")
                 student.delete_from_db()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося видалити студента:\n{e}")
@@ -224,9 +224,10 @@ class StudentInfoTab(QWidget):
 
 #📌 Вкладка2 CoursesTab для введення, редагування предметів
 class CoursesTab(QWidget):
-    def __init__(self):
+    def __init__(self, grades_tab=None):
         super().__init__()
         self.filter_semester = None  # зберігає поточне значення фільтра
+        self.grades_tab = grades_tab
         self.initUI()
 
     def initUI(self):
@@ -235,16 +236,16 @@ class CoursesTab(QWidget):
         
         # Перший рядок кнопок: Додати, Редагувати, Видалити, Фільтр, Показати усі
         btn_layout = QHBoxLayout()
-        self.add_btn = QPushButton("Додати")
-        self.edit_btn = QPushButton("Редагувати")
-        self.delete_btn = QPushButton("Видалити")
-        self.filter_btn = QPushButton("Фільтр")
-        self.show_all_btn = QPushButton("Показати усі")
+        self.add_btn = QPushButton("➕Додати")
+        self.edit_btn = QPushButton("🖊️Редагувати")
+        self.delete_btn = QPushButton("❌Видалити")
+        self.filter_btn = QPushButton("📋Фільтр")
+        self.show_all_btn = QPushButton("🔄Показати усі")
         
         btn_size = (120, 30)
         style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.filter_btn, self.show_all_btn):
-            btn.setFixedSize(*btn_size)
+            btn.setFixedSize(200,40)
             btn.setStyleSheet(style)
             btn_layout.addWidget(btn)
         main_layout.addLayout(btn_layout)
@@ -258,7 +259,7 @@ class CoursesTab(QWidget):
         self.sort_field_cb.addItems(fields)
         self.sort_order_cb = QComboBox()
         self.sort_order_cb.addItems(["За зростанням", "За спаданням"])
-        self.sort_btn = QPushButton("Сортувати")
+        self.sort_btn = QPushButton("📊Сортувати")
         self.sort_btn.setFixedSize(*btn_size)
         self.sort_btn.setStyleSheet(style)
         
@@ -331,7 +332,10 @@ class CoursesTab(QWidget):
                 conn.close()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося додати предмет:\n{e}")
+        
             self.load_courses()
+            if self.grades_tab:
+                self.grades_tab.load_courses()
 
 
     def edit_course(self):
@@ -365,6 +369,8 @@ class CoursesTab(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося оновити дані предмета:\n{e}")
             self.load_courses()
+            if self.grades_tab:
+                self.grades_tab.load_courses()
 
 
     def delete_course(self):
@@ -477,40 +483,6 @@ class GradesByCourseTab(QWidget):
         layout.addSpacing(20)
 
 
-        # # Таблиця з оцінками
-        # self.table = QTableWidget()
-        # self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)  # Дозволяє редагування
-        # layout.addWidget(self.table)
-        # layout.addSpacing(20)
-        # # Кнопки "Зберегти оцінки" та "Експортувати відомість"
-        # btn_layout = QHBoxLayout()
-        # btn_layout.addSpacing(20)
-        
-        # self.save_grades_btn = QPushButton("Зберегти оцінки")
-        # self.export_button = QPushButton("Відомість")
-        
-
-        # for btn in (self.save_grades_btn, self.export_button):
-        #     btn.setFixedSize(150, 30)
-        #     btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 5px; font-size: 16px")
-
-        # btn_layout = QHBoxLayout()
-        # btn_layout.addWidget(self.save_grades_btn)
-        # # Додаємо фіксований проміжок 40 пікселів
-        # btn_layout.addSpacing(40)
-        
-
-        # btn_layout.addStretch()  # Додаємо розтягування праворуч, щоб кнопки лишилися зліва
-       
-        # layout.addLayout(btn_layout)
-
-        # self.setLayout(layout)
-        # layout.addSpacing(20)
-
-        # # Підключення подій
-        # self.save_grades_btn.clicked.connect(self.save_grades)
-        # self.export_button.clicked.connect(self.export_to_excel)
-
         # Додаємо таблицю
         self.table = QTableWidget()
         self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)
@@ -546,10 +518,9 @@ class GradesByCourseTab(QWidget):
 
     def load_grades(self):
         """Завантаження оцінок по вибраному предмету"""
+        print("student_id =", self.student_id)  # додай це для перевірки
         course_id = self.course_dropdown.currentData()
-
-        # Отримати group_name тільки якщо це не студент
-        group_name = self.group_dropdown.currentText() if hasattr(self, "group_dropdown") else None
+        group_name = self.group_dropdown.currentText() if not self.student_id else None
 
         if course_id is None and not self.student_id:
             return  # Для викладачів потрібен вибраний предмет
@@ -572,19 +543,17 @@ class GradesByCourseTab(QWidget):
                 """, (self.student_id,))
                 raw_data = cursor.fetchall()
 
-                # Групування оцінок по семестрах
+                # Розрахунок середніх балів по семестрах
                 from collections import defaultdict
                 semester_data = defaultdict(list)
                 for semester, name, grade in raw_data:
                     semester_data[semester].append((name, grade))
 
-                # Формування списку оцінок із середніми
                 for semester in sorted(semester_data.keys()):
                     subjects = semester_data[semester]
                     for name, grade in subjects:
                         grades.append((semester, name, grade))
 
-                    # Додавання середнього балу
                     grades_in_semester = [g for _, g in subjects if isinstance(g, (int, float))]
                     if grades_in_semester:
                         avg = round(sum(grades_in_semester) / len(grades_in_semester), 2)
@@ -593,17 +562,17 @@ class GradesByCourseTab(QWidget):
                         grades.append((semester, "Середній бал:", "-"))
 
                 columns = ["Семестр", "Предмет", "Оцінка"]
+
             else:
                 # 🔹 Оцінки лише по вибраному предмету
                 cursor.execute("""
-                    SELECT S.last_name, S.first_name, S.middle_name, G.grade
+                    SELECT C.name, G.grade
                     FROM Grades G
-                    JOIN Student_info S ON G.student_id = S.student_id
-                    WHERE G.course_id = ? AND G.student_id = ?
-                    ORDER BY S.last_name ASC
-                """, (course_id, self.student_id))
+                    JOIN Course C ON G.course_id = C.course_id
+                    WHERE G.student_id = ? AND G.course_id = ?
+                """, (self.student_id, course_id))
                 grades = cursor.fetchall()
-                columns = ["Прізвище", "Ім'я", "По батькові", "Оцінка"]
+                columns = ["Предмет", "Оцінка"]
         else:
             # 🔹 Для викладача/секретаря — оцінки по конкретному предмету і групі
             cursor.execute("""
@@ -615,10 +584,13 @@ class GradesByCourseTab(QWidget):
             """, (course_id, group_name))
             grades = cursor.fetchall()
             columns = ["ID", "Прізвище", "Ім'я", "По батькові", "Оцінка"]
+            self.table.setColumnWidth(1, 150)
+            self.table.setColumnWidth(2, 150)
+            self.table.setColumnWidth(3, 150)
 
         conn.close()
 
-        # Очистка таблиці та заповнення
+        # Очистка і заповнення таблиці
         self.table.clear()
         self.table.setRowCount(len(grades))
         self.table.setColumnCount(len(columns))
@@ -636,7 +608,7 @@ class GradesByCourseTab(QWidget):
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                     item.setBackground(QColor("#D0F0C0"))
 
-                # 🔒 Дозвіл редагування лише для викладачів
+                # 🔒 Заборонити редагування студентам
                 if columns[col] == "Оцінка" and not self.student_id:
                     item.setFlags(item.flags() | Qt.ItemIsEditable)
                 else:
@@ -644,7 +616,6 @@ class GradesByCourseTab(QWidget):
 
                 self.table.setItem(row, col, item)
 
-        # Налаштування режиму редагування
         if not self.student_id and "ID" in columns:
             self.table.setColumnHidden(0, True)
             self.table.setEditTriggers(QAbstractItemView.AllEditTriggers)
@@ -652,16 +623,12 @@ class GradesByCourseTab(QWidget):
             self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
         # Налаштування ширини колонок
-        for i, width in enumerate([120, 300, 300,300][:len(columns)]):
+        for i, width in enumerate([120, 200, 200, 200, 80][:len(columns)]):
             self.table.setColumnWidth(i, width)
 
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
         )
-
-
-
-
 
     def save_grades(self):
         """Збереження внесених оцінок у базу даних (для викладача або секретаря)."""
@@ -869,10 +836,10 @@ class RatingTab(QWidget):
         self.scholarship_le.setPlaceholderText("Напр. 30")
 
         # Кнопки
-        self.list_btn = QPushButton("Список")
-        self.show_all_btn = QPushButton("Показати усіх")
+        self.list_btn = QPushButton("📋Список")
+        self.show_all_btn = QPushButton("🔄Показати усіх")
 
-        btn_size = (120, 30)
+        btn_size = (130, 40)
         style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.list_btn, self.show_all_btn):
             btn.setFixedSize(*btn_size)
@@ -1072,7 +1039,7 @@ class GradeEntryTab(QWidget):
         self.table.setColumnWidth(0, 50)   # ID
         self.table.setColumnWidth(1, 200)  # Предмет
         self.table.setColumnWidth(2, 100)  # Семестр
-        self.table.setColumnWidth(2, 60)   # Оцінка
+        self.table.setColumnWidth(3, 60)   # Оцінка
 
         main_layout.addWidget(self.table)
 
@@ -1188,7 +1155,7 @@ class GradeEntryTab(QWidget):
         cursor = conn.cursor()
         for row in range(rows):
             course_id = int(self.table.item(row, 0).text())
-            grade_text = self.table.item(row, 2).text().strip()
+            grade_text = self.table.item(row, 3).text().strip()
             cursor.execute("DELETE FROM Grades WHERE student_id = ? AND course_id = ?", (student_id, course_id))
             if grade_text != "":
                 try:
@@ -1235,7 +1202,6 @@ class GradeEntryTab(QWidget):
 
 
 # 📌 Головне вікно програми
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTabWidget
 
 class MainApp(QWidget):
     def __init__(self, user_data):
@@ -1246,29 +1212,36 @@ class MainApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle("Система обліку успішності студентів")
-        self.resize(1200, 800)
+        self.resize(1250, 800)
 
         layout = QVBoxLayout()
         self.tabs = QTabWidget()
 
         # Додавання вкладок залежно від ролі
         if self.position in ("секретар", "заввідділенням"):
+            self.grades_tab = GradesByCourseTab()
+            self.courses_tab = CoursesTab(grades_tab=self.grades_tab)
+
             self.tabs.addTab(StudentInfoTab(), "Інформація про студентів")
-            self.tabs.addTab(CoursesTab(), "Предмети")
-            self.tabs.addTab(GradesByCourseTab(), "Успішність по предмету")
+            self.tabs.addTab(self.courses_tab, "Предмети")
+            self.tabs.addTab(self.grades_tab, "Успішність по предмету")
             self.tabs.addTab(RatingTab(), "Рейтинг")
             self.tabs.addTab(GradeEntryTab(), "Внесення оцінок")
+
         elif self.position == "студент":
-            self.tabs.addTab(GradesByCourseTab(student_id=self.user_data["id"]), "Мої оцінки")
+            self.grades_tab = GradesByCourseTab(student_id=self.user_data["id"])
+            self.tabs.addTab(self.grades_tab, "Мої оцінки")
+            self.tabs.addTab(RatingTab(readonly=True), "Рейтинг")
+
             self.change_pwd_btn = QPushButton("Змінити пароль")
             self.change_pwd_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 6px; border-radius: 5px;")
             self.change_pwd_btn.clicked.connect(self.change_password)
-            self.tabs.addTab(RatingTab(readonly=True), "Рейтинг")
 
             layout.addWidget(self.change_pwd_btn, alignment=Qt.AlignLeft)
 
         layout.addWidget(self.tabs)
         self.setLayout(layout)
+
 
         # Оформлення вкладок
         self.tabs.setStyleSheet("""
