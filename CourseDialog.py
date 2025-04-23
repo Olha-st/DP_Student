@@ -46,46 +46,46 @@ class CourseDialog(QDialog):
         self.layout = QFormLayout(self)
 
         # Поля для введення
+        # ID
         if self.course is not None:
             self.id_edit = QLineEdit()
             self.id_edit.setReadOnly(True)
             self.id_edit.setText(str(self.course[0]))
             self.layout.addRow("ID:", self.id_edit)
         else:
-            # Якщо це додавання нового курсу — просто виводимо напис
             self.id_label = QLabel("автоматично")
             self.layout.addRow("ID:", self.id_label)
-        # self.id_edit.setReadOnly(True)  # робимо недоступним для редагування
+
         self.name_edit = QLineEdit()
         self.hours_edit = QLineEdit()
 
-        # Комбобокс для форми контролю
         self.form_control_cb = QComboBox()
         self.form_control_cb.addItems(["екзамен", "диф.залік"])
 
         self.semester_edit = QLineEdit()
 
-        # Додаємо елементи у форму
-        # self.layout.addRow("ID:", self.id_edit)
+        self.add_to_supplement_cb = QComboBox()
+        self.add_to_supplement_cb.addItems(["✅", "нема"])
+
+        # Додавання у форму
         self.layout.addRow("Назва:", self.name_edit)
         self.layout.addRow("Години:", self.hours_edit)
         self.layout.addRow("Форма контролю:", self.form_control_cb)
         self.layout.addRow("Семестр:", self.semester_edit)
+        self.layout.addRow("В додаток:", self.add_to_supplement_cb)
 
+        # Якщо переданий курс — заповнюємо поля
         if self.course is not None:
-            # Якщо курс переданий, заповнюємо поля
-            # self.id_edit.setText(str(self.course[0]))
-            # self.id_edit.setReadOnly(True)
             self.name_edit.setText(self.course[1])
             self.hours_edit.setText(str(self.course[2]))
             self.form_control_cb.setCurrentText(self.course[3])
             self.semester_edit.setText(self.course[4])
+            # курс[5] — булеве поле: 1 або 0
+            self.add_to_supplement_cb.setCurrentText("✅" if self.course[5] else "нема")
 
-        # Кнопки OK/Cancel
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-
         self.layout.addWidget(self.buttonBox)
 
     def get_data(self):
@@ -94,5 +94,6 @@ class CourseDialog(QDialog):
             'name': self.name_edit.text(),
             'number_hours': int(self.hours_edit.text()),
             'form_control': self.form_control_cb.currentText(),
-            'semester': self.semester_edit.text()
+            'semester': self.semester_edit.text(),
+            'in_supplement': 1 if self.add_to_supplement_cb.currentText() == "✅" else 0
         }

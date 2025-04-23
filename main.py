@@ -289,7 +289,6 @@ class CoursesTab(QWidget):
     def load_courses(self):
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
-
         if self.filter_semester:
             cursor.execute("SELECT * FROM Course WHERE semester = ?", (self.filter_semester,))
         else:
@@ -298,24 +297,35 @@ class CoursesTab(QWidget):
         conn.close()
 
         self.table.setRowCount(len(courses))
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр"])
-        self.table.setColumnHidden(0, True)  # ховаємо ID
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр", "В додаток"])
+        self.table.setColumnHidden(0, True)
 
         for row, course in enumerate(courses):
-            for col, data in enumerate(course):
-                item = NumericItem(str(data)) if col == 2 else QTableWidgetItem(str(data))
+            for col in range(6):
+                value = course[col]
+                if col == 2:  # Години — числове
+                    item = NumericItem(str(value))
+                elif col == 5:  # В додаток — булеве
+                    display = "✅" if value else "нема"
+                    item = QTableWidgetItem(display)
+                    item.setTextAlignment(Qt.AlignCenter)
+                else:
+                    item = QTableWidgetItem(str(value))
                 self.table.setItem(row, col, item)
 
+        # Налаштування ширини колонок
         self.table.setColumnWidth(0, 40)
         self.table.setColumnWidth(1, 250)
         self.table.setColumnWidth(2, 80)
         self.table.setColumnWidth(3, 160)
         self.table.setColumnWidth(4, 100)
+        self.table.setColumnWidth(5, 100)
 
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
         )
+
 
     def add_course(self):
         dialog = CourseDialog(self)
@@ -325,17 +335,18 @@ class CoursesTab(QWidget):
                 conn = sqlite3.connect("Student.db")
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT INTO Course (name, number_hours, form_control, semester)
-                    VALUES (?, ?, ?, ?)
-                """, (data['name'], data['number_hours'], data['form_control'], data['semester']))
+                    INSERT INTO Course (name, number_hours, form_control, semester, in_supplement)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (data['name'], data['number_hours'], data['form_control'], data['semester'], data['in_supplement']))
                 conn.commit()
                 conn.close()
             except Exception as e:
                 QMessageBox.warning(self, "Помилка", f"Не вдалося додати предмет:\n{e}")
-        
+
             self.load_courses()
             if self.grades_tab:
                 self.grades_tab.load_courses()
+
 
 
     def edit_course(self):
@@ -350,8 +361,10 @@ class CoursesTab(QWidget):
         number_hours = int(self.table.item(row, 2).text())
         form_control = self.table.item(row, 3).text()
         semester = self.table.item(row, 4).text()
+        in_supplement_text = self.table.item(row, 5).text()
+        in_supplement = 1 if in_supplement_text == "✅" else 0
 
-        current_course = (course_id, name, number_hours, form_control, semester)
+        current_course = (course_id, name, number_hours, form_control, semester, in_supplement)
         dialog = CourseDialog(self, course=current_course)
 
         if dialog.exec_() == QDialog.Accepted:
@@ -361,9 +374,9 @@ class CoursesTab(QWidget):
                 cursor = conn.cursor()
                 cursor.execute("""
                     UPDATE Course
-                    SET name = ?, number_hours = ?, form_control = ?, semester = ?
+                    SET name = ?, number_hours = ?, form_control = ?, semester = ?, in_supplement = ?
                     WHERE course_id = ?
-                """, (data['name'], data['number_hours'], data['form_control'], data['semester'], course_id))
+                """, (data['name'], data['number_hours'], data['form_control'], data['semester'], data['in_supplement'], course_id))
                 conn.commit()
                 conn.close()
             except Exception as e:
@@ -371,6 +384,7 @@ class CoursesTab(QWidget):
             self.load_courses()
             if self.grades_tab:
                 self.grades_tab.load_courses()
+
 
 
     def delete_course(self):
