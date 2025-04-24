@@ -234,7 +234,7 @@ class CoursesTab(QWidget):
         main_layout = QVBoxLayout()
         main_layout.addSpacing(20)
 
-        # --- Кнопки управління ---
+        # 🔘 Перший рядок кнопок
         btn_layout = QHBoxLayout()
         self.add_btn = QPushButton("➕Додати")
         self.edit_btn = QPushButton("🖊️Редагувати")
@@ -242,17 +242,17 @@ class CoursesTab(QWidget):
         self.filter_btn = QPushButton("📋Фільтр")
         self.show_all_btn = QPushButton("🔄Показати усі")
 
-        btn_size = (120, 30)
+        btn_size = (200, 40)
         style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.filter_btn, self.show_all_btn):
-            btn.setFixedSize(200, 40)
+            btn.setFixedSize(*btn_size)
             btn.setStyleSheet(style)
             btn_layout.addWidget(btn)
 
         main_layout.addLayout(btn_layout)
         main_layout.addSpacing(20)
 
-        # --- Панель сортування ---
+        # 🔃 Рядок сортування
         sort_layout = QHBoxLayout()
         self.sort_field_cb = QComboBox()
         fields = ["ID", "Назва", "Години", "Форма контролю", "Семестр"]
@@ -277,11 +277,7 @@ class CoursesTab(QWidget):
         main_layout.addLayout(sort_layout)
         main_layout.addSpacing(20)
 
-        # --- Таблиця ---
-        self.table = QTableWidget()
-        main_layout.addWidget(self.table)
-
-        # --- Панель фільтра ---
+        # 🧮 Панель фільтра
         self.filter_frame = QFrame()
         self.filter_frame.setVisible(False)
         filter_layout = QHBoxLayout()
@@ -294,10 +290,6 @@ class CoursesTab(QWidget):
         self.supplement_filter_cb.addItem("Усі", None)
         self.supplement_filter_cb.addItem("✅", 1)
         self.supplement_filter_cb.addItem("✖", 0)
-        #
-        self.supplement_cb = QComboBox()
-        self.supplement_cb.addItems(["✅", "✖"])
-        #
 
         apply_filter_btn = QPushButton("🔎 Застосувати")
         apply_filter_btn.setFixedSize(140, 30)
@@ -316,11 +308,14 @@ class CoursesTab(QWidget):
         self.filter_frame.setLayout(filter_layout)
         main_layout.addWidget(self.filter_frame)
 
-        # --- Завантаження даних ---
-        self.setLayout(main_layout)
-        self.load_courses()
+        # 📋 Таблиця курсів
+        self.table = QTableWidget()
+        main_layout.addWidget(self.table)
 
-        # --- Підключення сигналів ---
+        self.setLayout(main_layout)
+
+        # 🎯 Обробники подій
+        self.load_courses()
         self.add_btn.clicked.connect(self.add_course)
         self.edit_btn.clicked.connect(self.edit_course)
         self.delete_btn.clicked.connect(self.delete_course)
@@ -329,13 +324,40 @@ class CoursesTab(QWidget):
         self.sort_btn.clicked.connect(self.sort_courses)
 
 
+
     # метод
     def toggle_filter_panel(self):
         self.filter_frame.setVisible(not self.filter_frame.isVisible())
 
+    def display_courses(self, courses):
+        self.table.setRowCount(len(courses))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(
+            ["ID", "Назва", "Години", "Форма контролю", "Семестр", "В додаток"]
+        )
+        self.table.setColumnHidden(0, True)
+
+        for row, course in enumerate(courses):
+            for col, data in enumerate(course):
+                if col == 5:
+                    display_value = "✅" if data == 1 else "❌"
+                    item = QTableWidgetItem(display_value)
+                else:
+                    item = QTableWidgetItem(str(data))
+
+                if col == 0:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+
+                self.table.setItem(row, col, item)
+
+        self.table.resizeColumnsToContents()
+
+
+
     def load_courses(self):
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
+
         if self.filter_semester:
             cursor.execute("SELECT * FROM Course WHERE semester = ?", (self.filter_semester,))
         else:
@@ -353,7 +375,6 @@ class CoursesTab(QWidget):
                 value = course[col]
                 if col == 2:  # Години — числове
                     item = NumericItem(str(value))
-                    
                 elif col == 5:  # В додаток — булеве
                     display = "✅" if value else "✖"
                     item = QTableWidgetItem(display)
@@ -373,6 +394,7 @@ class CoursesTab(QWidget):
         self.table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background-color: #4CAF50; color: white; font-size: 16px; font-weight: bold; padding: 8px; }"
         )
+
 
 
     def add_course(self):
@@ -570,31 +592,10 @@ class CoursesTab(QWidget):
 
     #     self.table.resizeColumnsToContents()
 
-    def display_courses(self, courses):
-        self.table.setRowCount(len(courses))
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр", "В додаток"])
-        self.table.setColumnHidden(0, True)
-
-        for row, course in enumerate(courses):
-            for col in range(6):
-                value = course[col]
-                if col == 5:  # В додаток
-                    value = "✅" if value == 1 else "✖"
-                item = QTableWidgetItem(str(value))
-                if col == 0:
-                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                self.table.setItem(row, col, item)
-
-        self.table.resizeColumnsToContents()
-
-
-
-
 
     def apply_filters(self):
         semester = self.semester_filter_cb.currentText()
-        supplement = self.supplement_filter_cb.currentData()
+        supplement_text = self.supplement_filter_cb.currentText()
 
         query = "SELECT * FROM Course WHERE 1=1"
         params = []
@@ -603,13 +604,14 @@ class CoursesTab(QWidget):
             query += " AND semester = ?"
             params.append(semester)
 
-        if supplement is not None:
-            try:
-                supplement = int(supplement)
-                query += " AND in_supplement = ?"
-                params.append(supplement)
-            except ValueError:
-                pass  # якщо чомусь не число — ігноруємо фільтр
+        # Перетворення тексту на значення для фільтрації
+        if supplement_text == "✅":
+            query += " AND in_supplement = ?"
+            params.append(1)
+        elif supplement_text == "✖" or supplement_text == "Нема":
+            query += " AND in_supplement = ?"
+            params.append(0)
+        # якщо обрано "Усі", нічого не додаємо
 
         conn = sqlite3.connect("Student.db")
         cursor = conn.cursor()
@@ -618,6 +620,7 @@ class CoursesTab(QWidget):
         conn.close()
 
         self.display_courses(filtered_courses)
+
 
 
 
