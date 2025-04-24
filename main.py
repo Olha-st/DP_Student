@@ -13,8 +13,8 @@ from StudentDialog import StudentDialog
 from LoginDialog import LoginDialog
 from CourseDialog import CourseDialog
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-                             QTabWidget, QLabel, QPushButton, QComboBox, QDialog, QLineEdit,
-                             QMessageBox, QInputDialog, QDateEdit, QAbstractItemView, QFileDialog)
+                             QTabWidget, QLabel, QPushButton, QComboBox, QDialog, QLineEdit, QFrame,
+                             QMessageBox, QInputDialog, QDateEdit, QAbstractItemView, QFileDialog, QFormLayout, QDialogButtonBox)
 
 
 
@@ -233,36 +233,38 @@ class CoursesTab(QWidget):
     def initUI(self):
         main_layout = QVBoxLayout()
         main_layout.addSpacing(20)
-        
-        # Перший рядок кнопок: Додати, Редагувати, Видалити, Фільтр, Показати усі
+
+        # --- Кнопки управління ---
         btn_layout = QHBoxLayout()
         self.add_btn = QPushButton("➕Додати")
         self.edit_btn = QPushButton("🖊️Редагувати")
         self.delete_btn = QPushButton("❌Видалити")
         self.filter_btn = QPushButton("📋Фільтр")
         self.show_all_btn = QPushButton("🔄Показати усі")
-        
+
         btn_size = (120, 30)
         style = "background-color: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px"
         for btn in (self.add_btn, self.edit_btn, self.delete_btn, self.filter_btn, self.show_all_btn):
-            btn.setFixedSize(200,40)
+            btn.setFixedSize(200, 40)
             btn.setStyleSheet(style)
             btn_layout.addWidget(btn)
+
         main_layout.addLayout(btn_layout)
         main_layout.addSpacing(20)
-        
-        # Другий рядок: випадаючі списки для сортування та кнопка "Сортувати"
-        
+
+        # --- Панель сортування ---
         sort_layout = QHBoxLayout()
         self.sort_field_cb = QComboBox()
         fields = ["ID", "Назва", "Години", "Форма контролю", "Семестр"]
         self.sort_field_cb.addItems(fields)
+
         self.sort_order_cb = QComboBox()
         self.sort_order_cb.addItems(["За зростанням", "За спаданням"])
+
         self.sort_btn = QPushButton("📊Сортувати")
         self.sort_btn.setFixedSize(*btn_size)
         self.sort_btn.setStyleSheet(style)
-        
+
         sort_layout.addWidget(QLabel("Поле:"))
         sort_layout.addWidget(self.sort_field_cb)
         sort_layout.addSpacing(40)
@@ -270,21 +272,66 @@ class CoursesTab(QWidget):
         sort_layout.addWidget(self.sort_order_cb)
         sort_layout.addSpacing(40)
         sort_layout.addWidget(self.sort_btn)
-        main_layout.addLayout(sort_layout)
         sort_layout.addStretch()
+
+        main_layout.addLayout(sort_layout)
         main_layout.addSpacing(20)
-        
+
+        # --- Таблиця ---
         self.table = QTableWidget()
         main_layout.addWidget(self.table)
+
+        # --- Панель фільтра ---
+        self.filter_frame = QFrame()
+        self.filter_frame.setVisible(False)
+        filter_layout = QHBoxLayout()
+
+        self.semester_filter_cb = QComboBox()
+        self.semester_filter_cb.addItem("Усі семестри", None)
+        self.semester_filter_cb.addItems([str(i) for i in range(1, 9)])
+
+        self.supplement_filter_cb = QComboBox()
+        self.supplement_filter_cb.addItem("Усі", None)
+        self.supplement_filter_cb.addItem("✅", 1)
+        self.supplement_filter_cb.addItem("✖", 0)
+        #
+        self.supplement_cb = QComboBox()
+        self.supplement_cb.addItems(["✅", "✖"])
+        #
+
+        apply_filter_btn = QPushButton("🔎 Застосувати")
+        apply_filter_btn.setFixedSize(140, 30)
+        apply_filter_btn.setStyleSheet("background-color: #4CAF50; color: white; font-size: 14px; border-radius: 5px")
+        apply_filter_btn.clicked.connect(self.apply_filters)
+
+        filter_layout.addWidget(QLabel("Семестр:"))
+        filter_layout.addWidget(self.semester_filter_cb)
+        filter_layout.addSpacing(30)
+        filter_layout.addWidget(QLabel("В додаток:"))
+        filter_layout.addWidget(self.supplement_filter_cb)
+        filter_layout.addSpacing(30)
+        filter_layout.addWidget(apply_filter_btn)
+        filter_layout.addStretch()
+
+        self.filter_frame.setLayout(filter_layout)
+        main_layout.addWidget(self.filter_frame)
+
+        # --- Завантаження даних ---
         self.setLayout(main_layout)
-        
         self.load_courses()
+
+        # --- Підключення сигналів ---
         self.add_btn.clicked.connect(self.add_course)
         self.edit_btn.clicked.connect(self.edit_course)
         self.delete_btn.clicked.connect(self.delete_course)
-        self.filter_btn.clicked.connect(self.filter_courses)
+        self.filter_btn.clicked.connect(self.toggle_filter_panel)
         self.show_all_btn.clicked.connect(self.show_all_courses)
         self.sort_btn.clicked.connect(self.sort_courses)
+
+
+    # метод
+    def toggle_filter_panel(self):
+        self.filter_frame.setVisible(not self.filter_frame.isVisible())
 
     def load_courses(self):
         conn = sqlite3.connect("Student.db")
@@ -306,8 +353,9 @@ class CoursesTab(QWidget):
                 value = course[col]
                 if col == 2:  # Години — числове
                     item = NumericItem(str(value))
+                    
                 elif col == 5:  # В додаток — булеве
-                    display = "✅" if value else "нема"
+                    display = "✅" if value else "✖"
                     item = QTableWidgetItem(display)
                     item.setTextAlignment(Qt.AlignCenter)
                 else:
@@ -330,7 +378,12 @@ class CoursesTab(QWidget):
     def add_course(self):
         dialog = CourseDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            data = dialog.get_data()
+            try:
+                data = dialog.get_data()
+            except ValueError as ve:
+                QMessageBox.warning(self, "Помилка", str(ve))
+                return
+
             try:
                 conn = sqlite3.connect("Student.db")
                 cursor = conn.cursor()
@@ -346,6 +399,7 @@ class CoursesTab(QWidget):
             self.load_courses()
             if self.grades_tab:
                 self.grades_tab.load_courses()
+
 
 
 
@@ -411,6 +465,16 @@ class CoursesTab(QWidget):
 
 
     def filter_courses(self):
+        # отримуємо значення фільтра
+        in_supplement = self.supplement_filter_cb.currentData()
+
+        if in_supplement is not None:
+            # перетворюємо смайлики на 1 або 0
+            if in_supplement == "✅":
+                query += " AND in_supplement = 1"
+            elif in_supplement == "✖":
+                query += " AND in_supplement = 0"
+
         semester, ok = QInputDialog.getText(self, "Фільтр", "Введіть семестр для фільтрації (залиште порожнім для скидання):")
         if ok:
             if semester.strip() == "":
@@ -432,6 +496,132 @@ class CoursesTab(QWidget):
         direction = self.sort_order_cb.currentText()
         sort_order = Qt.AscendingOrder if direction == "За зростанням" else Qt.DescendingOrder
         self.table.sortItems(field_index, sort_order)
+
+    def open_filter_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Фільтр")
+        dialog.setFixedSize(300, 200)
+
+        layout = QFormLayout(dialog)
+
+        # Випадаючий список для семестру
+        semester_cb = QComboBox()
+        semester_cb.addItem("Усі", None)
+        semester_cb.addItems([str(i) for i in range(1, 9)])
+
+        # Випадаючий список для "в додаток"
+        in_supplement_cb = QComboBox()
+        in_supplement_cb.addItem("Усі", None)
+        in_supplement_cb.addItem("✅", 1)
+        in_supplement_cb.addItem("✖", 0)
+
+        if self.course is not None:
+            in_supplement_value = self.course[5] if len(self.course) > 5 else 0
+            self.supplement_cb.setCurrentText("✅" if in_supplement_value == 1 else "✖")
+        else:
+            self.supplement_cb.setCurrentText("Усі")  # для додавання нового
+
+
+        layout.addRow("Семестр:", semester_cb)
+        layout.addRow("В додаток:", in_supplement_cb)
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        layout.addWidget(button_box)
+
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        if dialog.exec_() == QDialog.Accepted:
+            selected_semester = semester_cb.currentText()
+            selected_flag = in_supplement_cb.currentData()  # це буде 0, 1 або None
+
+            query = "SELECT * FROM Course WHERE 1=1"
+            params = []
+
+            if selected_semester and selected_semester != "Усі":
+                query += " AND semester = ?"
+                params.append(selected_semester)
+
+            if selected_flag is not None:
+                query += " AND in_supplement = ?"
+                params.append(selected_flag)
+
+            conn = sqlite3.connect("Student.db")
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            courses = cursor.fetchall()
+            conn.close()
+
+            self.display_courses(courses)
+
+
+    # def display_courses(self, courses):
+    #     self.table.setRowCount(len(courses))
+    #     self.table.setColumnCount(6)
+    #     self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр", "В додаток"])
+    #     self.table.setColumnHidden(0, True)
+
+    #     for row, course in enumerate(courses):
+    #         for col, data in enumerate(course):
+    #             item = QTableWidgetItem("✅" if col == 5 and data == 1 else str(data))
+    #             if col == 2:  # числове поле
+    #                 item.setTextAlignment(Qt.AlignCenter)
+    #             self.table.setItem(row, col, item)
+
+    #     self.table.resizeColumnsToContents()
+
+    def display_courses(self, courses):
+        self.table.setRowCount(len(courses))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["ID", "Назва", "Години", "Форма контролю", "Семестр", "В додаток"])
+        self.table.setColumnHidden(0, True)
+
+        for row, course in enumerate(courses):
+            for col in range(6):
+                value = course[col]
+                if col == 5:  # В додаток
+                    value = "✅" if value == 1 else "✖"
+                item = QTableWidgetItem(str(value))
+                if col == 0:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                self.table.setItem(row, col, item)
+
+        self.table.resizeColumnsToContents()
+
+
+
+
+
+    def apply_filters(self):
+        semester = self.semester_filter_cb.currentText()
+        supplement = self.supplement_filter_cb.currentData()
+
+        query = "SELECT * FROM Course WHERE 1=1"
+        params = []
+
+        if semester and semester != "Усі семестри":
+            query += " AND semester = ?"
+            params.append(semester)
+
+        if supplement is not None:
+            try:
+                supplement = int(supplement)
+                query += " AND in_supplement = ?"
+                params.append(supplement)
+            except ValueError:
+                pass  # якщо чомусь не число — ігноруємо фільтр
+
+        conn = sqlite3.connect("Student.db")
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        filtered_courses = cursor.fetchall()
+        conn.close()
+
+        self.display_courses(filtered_courses)
+
+
+
+
 
 
 # 📌 Вкладка3 "Успішність по предмету"

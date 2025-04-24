@@ -1,6 +1,6 @@
 # Діалог для введення/редагування даних предмета
 
-from PyQt5.QtWidgets import QLabel, QComboBox, QDialog, QFormLayout, QLineEdit, QDialogButtonBox
+from PyQt5.QtWidgets import QLabel, QComboBox, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox
 
 class CourseDialog(QDialog):
     def __init__(self, parent=None, course=None):
@@ -65,7 +65,7 @@ class CourseDialog(QDialog):
         self.semester_edit = QLineEdit()
 
         self.add_to_supplement_cb = QComboBox()
-        self.add_to_supplement_cb.addItems(["✅", "нема"])
+        self.add_to_supplement_cb.addItems(["✅", "✖"])
 
         # Додавання у форму
         self.layout.addRow("Назва:", self.name_edit)
@@ -81,19 +81,71 @@ class CourseDialog(QDialog):
             self.form_control_cb.setCurrentText(self.course[3])
             self.semester_edit.setText(self.course[4])
             # курс[5] — булеве поле: 1 або 0
-            self.add_to_supplement_cb.setCurrentText("✅" if self.course[5] else "нема")
+            self.add_to_supplement_cb.setCurrentText("✅" if self.course[5] else "✖")
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.on_accept)
         self.buttonBox.rejected.connect(self.reject)
         self.layout.addWidget(self.buttonBox)
+
+    # def get_data(self):
+    #     return {
+    #         'course_id': int(self.id_edit.text()) if hasattr(self, 'id_edit') and self.id_edit.text().isdigit() else None,
+    #         'name': self.name_edit.text(),
+    #         'number_hours': int(self.hours_edit.text()),
+    #         'form_control': self.form_control_cb.currentText(),
+    #         'semester': self.semester_edit.text(),
+    #         'in_supplement': 1 if self.add_to_supplement_cb.currentText() == "✅" else 0
+    #     }
+
+    # def get_data(self):
+    #     name = self.name_edit.text().strip()
+    #     hours_text = self.hours_edit.text().strip()
+    #     semester = self.semester_edit.text().strip()
+
+    #     if not name or not hours_text or not semester:
+    #         raise ValueError("Будь ласка, заповніть усі поля: Назва, Години, Семестр")
+
+    #     try:
+    #         number_hours = int(hours_text)
+    #     except ValueError:
+    #         raise ValueError("Години мають бути числом!")
+
+    #     return {
+    #         'course_id': int(self.id_edit.text()) if hasattr(self, 'id_edit') and self.id_edit.text().isdigit() else None,
+    #         'name': name,
+    #         'number_hours': number_hours,
+    #         'form_control': self.form_control_cb.currentText(),
+    #         'semester': semester,
+    #         'in_supplement': 1 if self.supplement_cb.currentText() == "✅" else 0
+        # }
 
     def get_data(self):
         return {
             'course_id': int(self.id_edit.text()) if hasattr(self, 'id_edit') and self.id_edit.text().isdigit() else None,
-            'name': self.name_edit.text(),
-            'number_hours': int(self.hours_edit.text()),
+            'name': self.name_edit.text().strip(),
+            'number_hours': int(self.hours_edit.text().strip()),
             'form_control': self.form_control_cb.currentText(),
-            'semester': self.semester_edit.text(),
-            'in_supplement': 1 if self.add_to_supplement_cb.currentText() == "✅" else 0
+            'semester': self.semester_edit.text().strip(),
+            'in_supplement': 1 if self.supplement_cb.currentText() == "✅" else 0
         }
+
+
+
+
+    def on_accept(self):
+        name = self.name_edit.text().strip()
+        hours_text = self.hours_edit.text().strip()
+        semester = self.semester_edit.text().strip()
+
+        if not name or not hours_text or not semester:
+            QMessageBox.warning(self, "Помилка", "Будь ласка, заповніть усі поля: Назва, Години, Семестр")
+            return
+
+        try:
+            int(hours_text)
+        except ValueError:
+            QMessageBox.warning(self, "Помилка", "Години мають бути числом!")
+            return
+
+        self.accept()  # ✅ Лише якщо все гаразд
